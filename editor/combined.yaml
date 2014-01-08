@@ -1,0 +1,33 @@
+Components:
+  Agent: fife_rpg.components.agent
+  MoveAgent: fife_rpg.components.move_agent
+  CharacterStatistics: fife_rpg.components.character_statistics
+  Containable: fife_rpg.components.containable
+  Container: fife_rpg.components.container
+  Description: fife_rpg.components.description
+  Dialogue: fife_rpg.components.dialogue
+  Equip: fife_rpg.components.equip
+  Equipable: fife_rpg.components.equipable
+  FifeAgent: fife_rpg.components.fifeagent
+  General: fife_rpg.components.general
+  Lockable: fife_rpg.components.lockable
+  RPGEquip: fife_rpg.components.equip
+  Readable: fife_rpg.components.readable
+  Moving: fife_rpg.components.moving
+Systems:
+  CharacterStatisticSystem: fife_rpg.systems.character_statistics
+  GameVariables: fife_rpg.systems.game_variables
+  ScriptingSystem: fife_rpg.systems.scriptingsystem
+Actions:
+  MoveAgent: fife_rpg.actions.move_agent
+  Close: fife_rpg.actions.close
+  Lock: fife_rpg.actions.lock
+  Look: fife_rpg.actions.look
+  Open: fife_rpg.actions.open
+  PickUp: fife_rpg.actions.pick_up
+  Read: fife_rpg.actions.read
+  Unlock: fife_rpg.actions.unlock
+  MoveCamera: fife_rpg.actions.move_camera
+  SetGlobalLight: fife_rpg.actions.set_global_light
+Behaviours:
+  Base: fife_rpg.behaviours.base
