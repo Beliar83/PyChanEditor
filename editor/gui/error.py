@@ -21,6 +21,8 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 # ####################################################################
 
+# Edited to be usable with PyChanEditor
+
 from fife.extensions import pychan
 import fife.extensions.pychan.widgets as widgets
 
