@@ -46,9 +46,17 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
         eventmanager.addCommandListener(self)
 
     def keyPressed(self, evt):  # pylint: disable-msg=W0221, C0103
+        assert isinstance(evt, fife.KeyEvent)
         keyval = evt.getKey().getValue()
         if keyval == fife.Key.ESCAPE:
             self.app.quit()
+        elif keyval == fife.Key.UP and evt.isControlPressed():
+            selected = self.app.selected_widget
+            if not selected:
+                return
+            parent = selected.parent
+            if parent is not self.app.edit_window:
+                self.app.select_widget(parent)
 
     def keyReleased(self, evt):  # pylint: disable-msg=W0221, C0103
         pass
@@ -105,6 +113,16 @@ class EditorApplication(PychanApplicationBase):
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight());
 
+    @property
+    def selected_widget(self):
+        """The widget that is currently selected"""
+        return self._selected_widget
+
+    @property
+    def edit_window(self):
+        """The window that contains the gui to be edited"""
+        return self._edit_window
+
     def init_gui(self, screen_width, screen_height):
         """Initialize the gui
         
@@ -153,7 +171,7 @@ class EditorApplication(PychanApplicationBase):
     def get_widget_in(self, widget, x, y):
         point = fife.Point(x, y + self.MENU_HEIGHT + self.TOOLBAR_HEIGHT)
         abs_x, abs_y = widget.getAbsolutePos()
-        rect = fife.Rect(abs_x, abs_y, 
+        rect = fife.Rect(abs_x, abs_y,
                          widget.width, widget.height)
         if rect.contains(point):
             if hasattr(widget, "children"):
@@ -172,8 +190,8 @@ class EditorApplication(PychanApplicationBase):
         self._old_x = event.getX()
         self._old_y = event.getY()
         if self._marker_dragged:
-            #Stops the editor from selecting another widget after a widget has
-            #been resized by a marker
+            # Stops the editor from selecting another widget after a widget has
+            # been resized by a marker
             self._marker_dragged = False
             return
         assert isinstance(event, fife.MouseEvent)
@@ -183,16 +201,12 @@ class EditorApplication(PychanApplicationBase):
         clicked = self.get_widget_in(widget, event.getX(), event.getY())
         if clicked == widget:
             clicked = None
-        #while(clicked):
-        #    selected = clicked
         self.select_widget(clicked)
-        #event.consume()
 
     def get_pos_in_scrollarea(self, widget):
         assert isinstance(widget, pychan.Widget)
         x = widget.x
         y = widget.y
-        #fife.Rect.
         parent = widget.parent
         while parent is not self._edit_window:
             x += parent.x
