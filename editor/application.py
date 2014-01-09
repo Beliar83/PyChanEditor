@@ -346,6 +346,22 @@ class EditorApplication(PychanApplicationBase):
         assert isinstance(vfs, fife.VFS)
         vfs.addNewSource("%s/%s" % (path, gui_path))   
         self.open_gui("%s/%s" % (path, project["guis"][0]))
+
+    def disable_gui(self, widget, recursive=True):
+        """Disablds the widget.
+        
+        Args:
+            
+            widget: The widget to disable
+            
+            recursive: Wether to disable the children of the widget, or not.
+        """
+        widget.real_widget.setEnabled(False)
+        if not recursive or not hasattr(widget, "children"):
+            return
+        for child in widget.children:
+            self.disable_gui(child, True)
+
           
     def open_gui(self, filename):
         """Open a gui file
@@ -356,6 +372,7 @@ class EditorApplication(PychanApplicationBase):
         """
         try:
             gui = pychan.loadXML(filename)
+            self.disable_gui(gui)
             self.clear_gui()
             self._filename = filename
             self._edit_window.addChild(gui)
