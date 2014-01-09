@@ -339,7 +339,7 @@ class EditorApplication(PychanApplicationBase):
     def on_open_project_action(self):
         """Display the filebrowser to selct a gui file to open"""
         browser = FileBrowser(self.engine, self.on_project_file_selected,
-                              extensions=("pychan"),
+                              extensions=["pychan"],
                               guixmlpath=self.FILEBROWSER_XML)
         browser.setDirectory(".")
         browser.showBrowser()
