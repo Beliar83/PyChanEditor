@@ -1,0 +1,95 @@
+diff --git a/editor/application.py b/editor/application.py
+index a64cfd2..e107757 100644
+--- a/editor/application.py
++++ b/editor/application.py
+@@ -17,6 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
+ 
+ import gettext
+ from fife import fife
++import yaml
+ 
+ from fife.extensions import pychan
+ from fife.extensions.pychan import GuiXMLError
+@@ -93,7 +95,9 @@ class EditorApplication(PychanApplicationBase):
+         self._edit_window = None
+         self._edit_wrapper = None
+         self._property_window = None
+         self._selected_widget = None
++        self._project_data_path = None
+         self.init_gui(self._engine_settings.getScreenWidth(),
+                       self._engine_settings.getScreenHeight());
+
+@@ -131,7 +135,7 @@ class EditorApplication(PychanApplicationBase):
+         """Initialize actions for the menu"""
+         open_gui_action = Action(_(u"Open"), "gui/icons/open_file.png")
+         open_gui_action.helptext = _(u"Open GUI file")
+-        action.activated.connect(self.on_open_gui_action, sender=open_gui_action)
++        action.activated.connect(self.on_open_project_action, sender=open_gui_action)
+         exit_action = Action(_(u"Exit"), "gui/icons/quit.png")
+         exit_action.helptext = _(u"Exit program")
+         action.activated.connect(self.quit, sender=exit_action)
+@@ -320,14 +327,14 @@ class EditorApplication(PychanApplicationBase):
+         """Clears the current gui file and markers"""
+         self._edit_window.removeAllChildren()
+ 
+-    def on_open_gui_action(self):
++    def on_open_project_action(self):
+         """Display the filebrowser to selct a gui file to open"""
+-        browser = FileBrowser(self.engine, self.on_gui_file_selected,
+-                              extensions=("xml"),
++        browser = FileBrowser(self.engine, self.on_project_file_selected,
++                              extensions=("pychan"),
+                               guixmlpath=self.FILEBROWSER_XML)
+         browser.showBrowser()
+ 
+-    def on_gui_file_selected(self, path, filename):
++    def on_project_file_selected(self, path, filename):
+         """Called when a gui file was selected
+         
+         Args:
+@@ -335,9 +342,31 @@ class EditorApplication(PychanApplicationBase):
+             path: Path to the selected file
+             
+             filename: The selected file
+-        """
+-        self.open_gui("%s/%s" % (path, filename))
++        """         
++        project_file = file("%s/%s" % (path, filename), "r")
++        project = yaml.load(project_file)
++        gui_path = project["settings"]["gui_path"]
++        vfs = self.engine.getVFS()        
++        assert isinstance(vfs, fife.VFS)
++        vfs.addNewSource("%s/%s" % (path, gui_path))   
++        self.open_gui("%s/%s" % (path, project["guis"][0]))
+           
++
++    def disable_gui(self, widget, recursive=True):
++        """Disablds the widget.
++        
++        Args:
++            
++            widget: The widget to disable
++            
++            recursive: Wether to disable the children of the widget, or not.
++        """
++        widget.real_widget.setEnabled(False)
++        if not recursive or not hasattr(widget, "children"):
++            return
++        for child in widget.children:
++            self.disable_gui(child, True)
++
+     def open_gui(self, filename):
+         """Open a gui file
+         
+@@ -347,9 +376,10 @@ class EditorApplication(PychanApplicationBase):
+         """
+         try:
+             gui = pychan.loadXML(filename)
++            self.disable_gui(gui)
+             self.clear_gui()
+             self._filename = filename
+-            self._edit_window.addChild(gui)
++            self._edit_window.addChild(gui)               
+             self._edit_window.adaptLayout()
+             self._edit_wrapper.content = self._edit_window
+         except IOError:

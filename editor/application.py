@@ -17,6 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 import gettext
 import yaml
+import os
 
 from fife import fife
 
@@ -340,6 +341,7 @@ class EditorApplication(PychanApplicationBase):
         browser = FileBrowser(self.engine, self.on_project_file_selected,
                               extensions=("pychan"),
                               guixmlpath=self.FILEBROWSER_XML)
+        browser.setDirectory(".")
         browser.showBrowser()
 
     def on_project_file_selected(self, path, filename):
@@ -351,13 +353,15 @@ class EditorApplication(PychanApplicationBase):
             
             filename: The selected file
         """
-        project_file = file("%s/%s" % (path, filename), "r")
+        filepath = os.path.join(path, filename)
+        project_file = file(filepath, "r")
         project = yaml.load(project_file)
-        gui_path = project["settings"]["gui_path"]
+        gui_path = os.path.join(path, project["settings"]["gui_path"])
         vfs = self.engine.getVFS()        
         assert isinstance(vfs, fife.VFS)
-        vfs.addNewSource("%s/%s" % (path, gui_path))   
-        self.open_gui("%s/%s" % (path, project["guis"][0]))
+        vfs.addNewSource(gui_path)
+        gui_filepath = os.path.join(path, project["guis"][0])
+        self.open_gui(gui_filepath)
 
     def disable_gui(self, widget, recursive=True):
         """Disablds the widget.
