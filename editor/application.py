@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 """
 
 import gettext
+import yaml
+
 from fife import fife
 
 from fife.extensions import pychan
@@ -94,6 +96,7 @@ class EditorApplication(PychanApplicationBase):
         self._edit_wrapper = None
         self._property_window = None
         self._selected_widget = None
+        self._project_data_path = None
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight());
 
@@ -129,14 +132,14 @@ class EditorApplication(PychanApplicationBase):
         
     def init_menu_actions(self):
         """Initialize actions for the menu"""
-        open_gui_action = Action(_(u"Open"), "gui/icons/open_file.png")
-        open_gui_action.helptext = _(u"Open GUI file")
-        action.activated.connect(self.on_open_gui_action, sender=open_gui_action)
+        open_project_action = Action(_(u"Open"), "gui/icons/open_file.png")
+        open_project_action.helptext = _(u"Open GUI file")
+        action.activated.connect(self.on_open_project_action, sender=open_project_action)
         exit_action = Action(_(u"Exit"), "gui/icons/quit.png")
         exit_action.helptext = _(u"Exit program")
         action.activated.connect(self.quit, sender=exit_action)
         self._file_menu = Menu(name=_(u"File"))
-        self._file_menu.addAction(open_gui_action)
+        self._file_menu.addAction(open_project_action)
         self._file_menu.addSeparator()
         self._file_menu.addAction(exit_action)
         self._menubar.addMenu(self._file_menu)
@@ -320,14 +323,14 @@ class EditorApplication(PychanApplicationBase):
         """Clears the current gui file and markers"""
         self._edit_window.removeAllChildren()
 
-    def on_open_gui_action(self):
+    def on_open_project_action(self):
         """Display the filebrowser to selct a gui file to open"""
-        browser = FileBrowser(self.engine, self.on_gui_file_selected,
-                              extensions=("xml"),
+        browser = FileBrowser(self.engine, self.on_project_file_selected,
+                              extensions=("pychan"),
                               guixmlpath=self.FILEBROWSER_XML)
         browser.showBrowser()
 
-    def on_gui_file_selected(self, path, filename):
+    def on_project_file_selected(self, path, filename):
         """Called when a gui file was selected
         
         Args:
@@ -336,7 +339,13 @@ class EditorApplication(PychanApplicationBase):
             
             filename: The selected file
         """
-        self.open_gui("%s/%s" % (path, filename))
+        project_file = file("%s/%s" % (path, filename), "r")
+        project = yaml.load(project_file)
+        gui_path = project["settings"]["gui_path"]
+        vfs = self.engine.getVFS()        
+        assert isinstance(vfs, fife.VFS)
+        vfs.addNewSource("%s/%s" % (path, gui_path))   
+        self.open_gui("%s/%s" % (path, project["guis"][0]))
           
     def open_gui(self, filename):
         """Open a gui file
