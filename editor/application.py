@@ -99,6 +99,9 @@ class EditorApplication(PychanApplicationBase):
         self._selected_widget = None
         self._project_data_path = None
         self._marker_dragged = False
+        self._widget_dragged = False
+        self._old_x = 0
+        self._old_y = 0
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight());
 
@@ -122,7 +125,8 @@ class EditorApplication(PychanApplicationBase):
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
         self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)        
         self._edit_window = Container(parent=self._edit_wrapper)
-        self._edit_window.capture(self.on_widget_selected, "mouseClicked")
+        self._edit_window.capture(self.on_widget_selected, "mousePressed")
+        self._edit_window.capture(self.on_widget_dragged, "mouseDragged")
 
         self._edit_wrapper.addChild(self._edit_window)
         self._bottom_window.addChild(self._edit_wrapper)
@@ -164,6 +168,9 @@ class EditorApplication(PychanApplicationBase):
         return None
     
     def on_widget_selected(self, event, widget):
+        self._widget_dragged = False
+        self._old_x = event.getX()
+        self._old_y = event.getY()
         if self._marker_dragged:
             #Stops the editor from selecting another widget after a widget has
             #been resized by a marker
@@ -244,7 +251,7 @@ class EditorApplication(PychanApplicationBase):
             widget.y += rel_y
         self.position_markers()
     
-    def on_marker_clicked(self, event, widget):
+    def on_marker_pressed(self, event, widget):
         self._marker_dragged = True
 
     def position_markers(self):
@@ -270,7 +277,7 @@ class EditorApplication(PychanApplicationBase):
             size=(10, 10),
             image="gui\icons\marker.png")
         marker_tl.capture(self.on_marker_dragged, "mouseDragged")
-        marker_tl.capture(self.on_marker_clicked, "mouseClicked")
+        marker_tl.capture(self.on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_tl)
         self._markers["TL"] = marker_tl
         marker_tr = pychan.Icon(parent=self._edit_window,
@@ -278,7 +285,7 @@ class EditorApplication(PychanApplicationBase):
             size=(10, 10),
             image="gui\icons\marker.png")
         marker_tr.capture(self.on_marker_dragged, "mouseDragged")
-        marker_tr.capture(self.on_marker_clicked, "mouseClicked")
+        marker_tr.capture(self.on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_tr)
         self._markers["TR"] = marker_tr
         marker_br = pychan.Icon(parent=self._edit_window,
@@ -286,7 +293,7 @@ class EditorApplication(PychanApplicationBase):
             size=(10, 10),
             image="gui\icons\marker.png")
         marker_br.capture(self.on_marker_dragged, "mouseDragged")
-        marker_br.capture(self.on_marker_clicked, "mouseClicked")
+        marker_br.capture(self.on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_br)
         self._markers["BR"] = marker_br
         marker_bl = pychan.Icon(parent=self._edit_window,
@@ -294,7 +301,7 @@ class EditorApplication(PychanApplicationBase):
             size=(10, 10),
             image="gui\icons\marker.png")
         marker_bl.capture(self.on_marker_dragged, "mouseDragged")
-        marker_bl.capture(self.on_marker_clicked, "mouseClicked")
+        marker_bl.capture(self.on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_bl)
         self._markers["BL"] = marker_bl
         self.position_markers()
@@ -406,3 +413,17 @@ class EditorApplication(PychanApplicationBase):
     def createListener(self):
         self._listener = EditorEventListener(self)
         return self._listener
+
+    def on_widget_dragged(self, event, widget):
+        if self._marker_dragged:
+            return
+        if self._selected_widget is None:
+            return
+        rel_x = event.getX() - self._old_x
+        rel_y = event.getY() - self._old_y
+        self._selected_widget.x += rel_x
+        self._selected_widget.y += rel_y
+        self.position_markers()
+        self._old_x = event.getX()
+        self._old_y = event.getY()
+        self._widget_dragged = True
