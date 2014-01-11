@@ -3,15 +3,15 @@ PyChanEditor Copyright (C) 2014 Karsten Bock
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later 
+Foundation; either version 2 of the License, or (at your option) any later
 version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT 
+This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 
+this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
@@ -34,7 +34,7 @@ from editor.gui.error import ErrorDialog
 from xml.sax._exceptions import SAXParseException
 
 class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
-    
+
     """Listener for the PyChanEditor"""
     def __init__(self, app):
         self.app = app
@@ -67,20 +67,20 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
             command.consume()
 
 class EditorApplication(PychanApplicationBase):
-   
+
     DATA_PATH = "data/"
-    FILEBROWSER_XML = DATA_PATH + "gui/filebrowser.xml"    
+    FILEBROWSER_XML = DATA_PATH + "gui/filebrowser.xml"
     MENU_HEIGHT = 30
     TOOLBAR_HEIGHT = 60
-   
+
     def __init__(self, setting=None):
         PychanApplicationBase.__init__(self, setting)
-        
+
         self.error_dialog = lambda msg: ErrorDialog(msg, self.DATA_PATH)
-        
+
         vfs = self.engine.getVFS()
         vfs.addNewSource(self.DATA_PATH)
-                    
+
         self.__languages = {}
         self.__current_language = ""
         default_language = setting.get("i18n", "DefaultLanguage", "en")
@@ -93,7 +93,7 @@ class EditorApplication(PychanApplicationBase):
                                                             fallback=fallback)
         language = setting.get("i18n", "Language", default_language)
         self.switch_language(language)
-        
+
         self._engine_settings = self.engine.getSettings()
         self._filename = None
         self._markers = {}
@@ -125,11 +125,11 @@ class EditorApplication(PychanApplicationBase):
 
     def init_gui(self, screen_width, screen_height):
         """Initialize the gui
-        
+
         Args:
-        
+
             screen_width: The width the elements are sized to
-            
+
             screen_height: The height the elements are sized to
         """
         self._main_window = VBox(min_size=(screen_width, screen_height),
@@ -141,7 +141,7 @@ class EditorApplication(PychanApplicationBase):
                              vexpand=0, hexpand=1)
         self._main_window.addChild(self._toolbar)
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
-        self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)        
+        self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)
         self._edit_window = Container(parent=self._edit_wrapper)
         self._edit_window.capture(self.on_widget_selected, "mousePressed")
         self._edit_window.capture(self.on_widget_dragged, "mouseDragged")
@@ -153,7 +153,7 @@ class EditorApplication(PychanApplicationBase):
         self._main_window.addChild(self._bottom_window)
         self._main_window.show()
         self.clear_gui()
-        
+
     def init_menu_actions(self):
         """Initialize actions for the menu"""
         open_project_action = Action(_(u"Open"), "gui/icons/open_file.png")
@@ -182,9 +182,9 @@ class EditorApplication(PychanApplicationBase):
                 return widget
             else:
                 return widget
-                
+
         return None
-    
+
     def on_widget_selected(self, event, widget):
         self._widget_dragged = False
         self._old_x = event.getX()
@@ -212,9 +212,9 @@ class EditorApplication(PychanApplicationBase):
             x += parent.x
             y += parent.y
             parent = parent.parent
-        
+
         return x, y
-    
+
     def on_marker_dragged(self, event, widget):
         assert isinstance(widget, pychan.Widget)
         old_x, old_y = self.get_pos_in_scrollarea(widget)
@@ -228,10 +228,10 @@ class EditorApplication(PychanApplicationBase):
                 return
             if new_y >= self._markers["BR"].y:
                 return
-            self._selected_widget.x += rel_x
-            self._selected_widget.y += rel_y
-            self._selected_widget.width += rel_x * -1
-            self._selected_widget.height += rel_y * -1
+            self.selected_widget.x += rel_x
+            self.selected_widget.y += rel_y
+            self.selected_widget.width += rel_x * -1
+            self.selected_widget.height += rel_y * -1
             widget.x += rel_x
             widget.y += rel_y
         if marker == "TR":
@@ -239,9 +239,9 @@ class EditorApplication(PychanApplicationBase):
                 return
             if new_y >= self._markers["BL"].y:
                 return
-            self._selected_widget.y += rel_y
-            self._selected_widget.width += rel_x
-            self._selected_widget.height += rel_y * -1
+            self.selected_widget.y += rel_y
+            self.selected_widget.width += rel_x
+            self.selected_widget.height += rel_y * -1
             widget.x += rel_x
             widget.y += rel_y
         if marker == "BR":
@@ -249,8 +249,8 @@ class EditorApplication(PychanApplicationBase):
                 return
             if new_y <= self._markers["TL"].y:
                 return
-            self._selected_widget.width += rel_x
-            self._selected_widget.height += rel_y
+            self.selected_widget.width += rel_x
+            self.selected_widget.height += rel_y
             widget.x += rel_x
             widget.y += rel_y
         if marker == "BL":
@@ -258,33 +258,33 @@ class EditorApplication(PychanApplicationBase):
                 return
             if new_y <= self._markers["TR"].y:
                 return
-            self._selected_widget.x += rel_x
-            self._selected_widget.width += rel_x * -1
-            self._selected_widget.height += rel_y
+            self.selected_widget.x += rel_x
+            self.selected_widget.width += rel_x * -1
+            self.selected_widget.height += rel_y
             widget.x += rel_x
             widget.y += rel_y
         self.position_markers()
-    
+
     def on_marker_pressed(self, event, widget):
         self._marker_dragged = True
 
     def position_markers(self):
         """RePositions the markers on the selected wiget"""
-        x, y = self.get_pos_in_scrollarea(self._selected_widget)
+        x, y = self.get_pos_in_scrollarea(self.selected_widget)
         x -= 5
         y -= 5
         self._markers["TL"].position = x, y
-        x += self._selected_widget.width
+        x += self.selected_widget.width
         self._markers["TR"].position = x, y
-        y += self._selected_widget.height
+        y += self.selected_widget.height
         self._markers["BR"].position = x, y
-        x -= self._selected_widget.width
+        x -= self.selected_widget.width
         self._markers["BL"].position = x, y
 
     def recreate_markers(self):
         """ReCreates the markers for the currently selected widget"""
         self.clear_markers()
-        if self._selected_widget is None:
+        if self.selected_widget is None:
             return
         marker_tl = pychan.Icon(parent=self._edit_window,
             name="MarkerTL",
@@ -322,9 +322,9 @@ class EditorApplication(PychanApplicationBase):
 
     def select_widget(self, widget):
         """Sets a widget to be the currently selected one
-        
+
         Args:
-        
+
             widget: The widget
         """
         if widget is None:
@@ -332,20 +332,20 @@ class EditorApplication(PychanApplicationBase):
         else:
             assert isinstance(widget, pychan.Widget)
             self._selected_widget = widget
-        self.recreate_markers()        
+        self.recreate_markers()
 
     def switch_language(self, language):
         """Switch to the given language
-        
+
         Args:
-        
+
             language: The name of the language to switch to
         """
         if not language in self.__languages:
             raise KeyError("The language '%s' is not available" % language)
         if not language == self.__current_language:
             self.__languages[language].install()
-            self.__current_language = language    
+            self.__current_language = language
 
     def clear_markers(self):
         """Removes the markers"""
@@ -367,18 +367,18 @@ class EditorApplication(PychanApplicationBase):
 
     def on_project_file_selected(self, path, filename):
         """Called when a gui file was selected
-        
+
         Args:
 
             path: Path to the selected file
-            
+
             filename: The selected file
         """
         filepath = os.path.join(path, filename)
         project_file = file(filepath, "r")
         project = yaml.load(project_file)
         gui_path = os.path.join(path, project["settings"]["gui_path"])
-        vfs = self.engine.getVFS()        
+        vfs = self.engine.getVFS()
         assert isinstance(vfs, fife.VFS)
         vfs.addNewSource(gui_path)
         gui_filepath = os.path.join(path, project["guis"][0])
@@ -386,11 +386,11 @@ class EditorApplication(PychanApplicationBase):
 
     def disable_gui(self, widget, recursive=True):
         """Disablds the widget.
-        
+
         Args:
-            
+
             widget: The widget to disable
-            
+
             recursive: Wether to disable the children of the widget, or not.
         """
         widget.real_widget.setEnabled(False)
@@ -399,12 +399,12 @@ class EditorApplication(PychanApplicationBase):
         for child in widget.children:
             self.disable_gui(child, True)
 
-          
+
     def open_gui(self, filename):
         """Open a gui file
-        
+
         Args:
-        
+
             filename: The path to the file
         """
         try:
@@ -416,14 +416,14 @@ class EditorApplication(PychanApplicationBase):
             self._edit_window.adaptLayout()
             self._edit_wrapper.content = self._edit_window
         except IOError:
-            self.error_dialog (u"File '%s' was not found." % 
+            self.error_dialog (u"File '%s' was not found." %
                                (filename))
         except SAXParseException:
             self.error_dialog(u"Could not parse XML")
         except GuiXMLError, error:
             self.error_dialog(unicode(error))
-            
-        
+
+
     def createListener(self):
         self._listener = EditorEventListener(self)
         return self._listener
@@ -431,12 +431,12 @@ class EditorApplication(PychanApplicationBase):
     def on_widget_dragged(self, event, widget):
         if self._marker_dragged:
             return
-        if self._selected_widget is None:
+        if self.selected_widget is None:
             return
         rel_x = event.getX() - self._old_x
         rel_y = event.getY() - self._old_y
-        self._selected_widget.x += rel_x
-        self._selected_widget.y += rel_y
+        self.selected_widget.x += rel_x
+        self.selected_widget.y += rel_y
         self.position_markers()
         self._old_x = event.getX()
         self._old_y = event.getY()
