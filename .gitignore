@@ -35,3 +35,7 @@ nosetests.xml
 
 # Logs
 *.log
+
+# Patches
+*.diff
+*.patch

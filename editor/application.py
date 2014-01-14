@@ -33,6 +33,7 @@ from editor.gui import action
 from editor.gui.error import ErrorDialog
 from xml.sax._exceptions import SAXParseException
 
+
 class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
 
     """Listener for the PyChanEditor"""
@@ -66,7 +67,9 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
             self.app.quit()
             command.consume()
 
+
 class EditorApplication(PychanApplicationBase):
+    """The main class for the PyChanEditor"""
 
     DATA_PATH = "data/"
     FILEBROWSER_XML = DATA_PATH + "gui/filebrowser.xml"
@@ -74,6 +77,7 @@ class EditorApplication(PychanApplicationBase):
     TOOLBAR_HEIGHT = 60
 
     def __init__(self, setting=None):
+        self._listener = None
         PychanApplicationBase.__init__(self, setting)
 
         self.error_dialog = lambda msg: ErrorDialog(msg, self.DATA_PATH)
@@ -100,6 +104,7 @@ class EditorApplication(PychanApplicationBase):
         self._main_window = None
         self._toolbar = None
         self._menubar = None
+        self._file_menu = None
         self._bottom_window = None
         self._edit_window = None
         self._edit_wrapper = None
@@ -111,7 +116,7 @@ class EditorApplication(PychanApplicationBase):
         self._old_x = 0
         self._old_y = 0
         self.init_gui(self._engine_settings.getScreenWidth(),
-                      self._engine_settings.getScreenHeight());
+                      self._engine_settings.getScreenHeight())
 
     @property
     def selected_widget(self):
@@ -143,8 +148,9 @@ class EditorApplication(PychanApplicationBase):
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
         self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)
         self._edit_window = Container(parent=self._edit_wrapper)
-        self._edit_window.capture(self.on_widget_selected, "mousePressed")
-        self._edit_window.capture(self.on_widget_dragged, "mouseDragged")
+        self._edit_window.capture(self.cb_on_widget_selected, "mousePressed")
+        self._edit_window.capture(self.cb_on_edit_window_dragged,
+                                  "mouseDragged")
 
         self._edit_wrapper.addChild(self._edit_window)
         self._bottom_window.addChild(self._edit_wrapper)
@@ -158,7 +164,8 @@ class EditorApplication(PychanApplicationBase):
         """Initialize actions for the menu"""
         open_project_action = Action(_(u"Open"), "gui/icons/open_file.png")
         open_project_action.helptext = _(u"Open GUI file")
-        action.activated.connect(self.on_open_project_action, sender=open_project_action)
+        action.activated.connect(self.cb_on_open_project_action,
+                                 sender=open_project_action)
         exit_action = Action(_(u"Exit"), "gui/icons/quit.png")
         exit_action.helptext = _(u"Exit program")
         action.activated.connect(self.quit, sender=exit_action)
@@ -168,15 +175,28 @@ class EditorApplication(PychanApplicationBase):
         self._file_menu.addAction(exit_action)
         self._menubar.addMenu(self._file_menu)
 
-    def get_widget_in(self, widget, x, y):
-        point = fife.Point(x, y + self.MENU_HEIGHT + self.TOOLBAR_HEIGHT)
+    def get_widget_in(self, widget, x_pos, y_pos):
+        """Returns the first child widget at the position in the widgets area
+
+            Args:
+
+                widget: The widget in which area the child is looked for.
+
+                x_pos: The horizontal position where the widget should be
+                looked for
+
+                y_pos: The vertical position where the widget should be looked
+                for
+        """
+        point = fife.Point(x_pos, y_pos +
+                           self.MENU_HEIGHT + self.TOOLBAR_HEIGHT)
         abs_x, abs_y = widget.getAbsolutePos()
         rect = fife.Rect(abs_x, abs_y,
                          widget.width, widget.height)
         if rect.contains(point):
             if hasattr(widget, "children"):
                 for child in widget.children:
-                    found = self.get_widget_in(child, x, y)
+                    found = self.get_widget_in(child, x_pos, y_pos)
                     if found:
                         return found
                 return widget
@@ -185,7 +205,15 @@ class EditorApplication(PychanApplicationBase):
 
         return None
 
-    def on_widget_selected(self, event, widget):
+    def cb_on_widget_selected(self, event, widget):
+        """Called when a widget is clicked
+
+        Args:
+
+            event: A fife.MouseEvent instance
+
+            widget: The widget that was clicked
+        """
         self._widget_dragged = False
         self._old_x = event.getX()
         self._old_y = event.getY()
@@ -204,18 +232,32 @@ class EditorApplication(PychanApplicationBase):
         self.select_widget(clicked)
 
     def get_pos_in_scrollarea(self, widget):
+        """Returns the position of the widget in the scrollarea
+
+        Args:
+
+            widget: The widget
+        """
         assert isinstance(widget, pychan.Widget)
-        x = widget.x
-        y = widget.y
+        x_pos = widget.x
+        y_pos = widget.y
         parent = widget.parent
         while parent is not self._edit_window:
-            x += parent.x
-            y += parent.y
+            x_pos += parent.x
+            y_pos += parent.y
             parent = parent.parent
 
-        return x, y
+        return x_pos, y_pos
 
-    def on_marker_dragged(self, event, widget):
+    def cb_on_marker_dragged(self, event, widget):
+        """Called when a marker is being dragged
+
+        Args:
+
+            event: A fife.MouseEvent
+
+            widget: The marker that is  being dragged
+        """
         assert isinstance(widget, pychan.Widget)
         old_x, old_y = self.get_pos_in_scrollarea(widget)
         rel_x = event.getX()
@@ -265,21 +307,31 @@ class EditorApplication(PychanApplicationBase):
             widget.y += rel_y
         self.position_markers()
 
-    def on_marker_pressed(self, event, widget):
-        self._marker_dragged = True
+    def cb_on_marker_pressed(self, event, widget):
+        """Called when a mouse button was pressed on a marker
+
+        Args:
+
+            event: A fife.MouseEvent
+
+            widget: The marker where the mouse was pressed on
+        """
+        assert isinstance(event, fife.MouseEvent)
+        if event.getButton() == 1:
+            self._marker_dragged = True
 
     def position_markers(self):
-        """RePositions the markers on the selected wiget"""
-        x, y = self.get_pos_in_scrollarea(self.selected_widget)
-        x -= 5
-        y -= 5
-        self._markers["TL"].position = x, y
-        x += self.selected_widget.width
-        self._markers["TR"].position = x, y
-        y += self.selected_widget.height
-        self._markers["BR"].position = x, y
-        x -= self.selected_widget.width
-        self._markers["BL"].position = x, y
+        """RePositions the markers on the selected widget"""
+        x_pos, y_pos = self.get_pos_in_scrollarea(self.selected_widget)
+        x_pos -= 5
+        y_pos -= 5
+        self._markers["TL"].position = x_pos, y_pos
+        x_pos += self.selected_widget.width
+        self._markers["TR"].position = x_pos, y_pos
+        y_pos += self.selected_widget.height
+        self._markers["BR"].position = x_pos, y_pos
+        x_pos -= self.selected_widget.width
+        self._markers["BL"].position = x_pos, y_pos
 
     def recreate_markers(self):
         """ReCreates the markers for the currently selected widget"""
@@ -289,33 +341,33 @@ class EditorApplication(PychanApplicationBase):
         marker_tl = pychan.Icon(parent=self._edit_window,
             name="MarkerTL",
             size=(10, 10),
-            image="gui\icons\marker.png")
-        marker_tl.capture(self.on_marker_dragged, "mouseDragged")
-        marker_tl.capture(self.on_marker_pressed, "mousePressed")
+            image="gui/icons/marker.png")
+        marker_tl.capture(self.cb_on_marker_dragged, "mouseDragged")
+        marker_tl.capture(self.cb_on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_tl)
         self._markers["TL"] = marker_tl
         marker_tr = pychan.Icon(parent=self._edit_window,
             name="MarkerTR",
             size=(10, 10),
-            image="gui\icons\marker.png")
-        marker_tr.capture(self.on_marker_dragged, "mouseDragged")
-        marker_tr.capture(self.on_marker_pressed, "mousePressed")
+            image="gui/icons/marker.png")
+        marker_tr.capture(self.cb_on_marker_dragged, "mouseDragged")
+        marker_tr.capture(self.cb_on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_tr)
         self._markers["TR"] = marker_tr
         marker_br = pychan.Icon(parent=self._edit_window,
             name="MarkerBR",
             size=(10, 10),
-            image="gui\icons\marker.png")
-        marker_br.capture(self.on_marker_dragged, "mouseDragged")
-        marker_br.capture(self.on_marker_pressed, "mousePressed")
+            image="gui/icons/marker.png")
+        marker_br.capture(self.cb_on_marker_dragged, "mouseDragged")
+        marker_br.capture(self.cb_on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_br)
         self._markers["BR"] = marker_br
         marker_bl = pychan.Icon(parent=self._edit_window,
             name="MarkerBL",
             size=(10, 10),
-            image="gui\icons\marker.png")
-        marker_bl.capture(self.on_marker_dragged, "mouseDragged")
-        marker_bl.capture(self.on_marker_pressed, "mousePressed")
+            image="gui/icons/marker.png")
+        marker_bl.capture(self.cb_on_marker_dragged, "mouseDragged")
+        marker_bl.capture(self.cb_on_marker_pressed, "mousePressed")
         self._edit_window.addChild(marker_bl)
         self._markers["BL"] = marker_bl
         self.position_markers()
@@ -357,15 +409,15 @@ class EditorApplication(PychanApplicationBase):
         """Clears the current gui file and markers"""
         self._edit_window.removeAllChildren()
 
-    def on_open_project_action(self):
+    def cb_on_open_project_action(self):
         """Display the filebrowser to selct a gui file to open"""
-        browser = FileBrowser(self.engine, self.on_project_file_selected,
+        browser = FileBrowser(self.engine, self.cb_on_project_file_selected,
                               extensions=["pychan"],
                               guixmlpath=self.FILEBROWSER_XML)
         browser.setDirectory(".")
         browser.showBrowser()
 
-    def on_project_file_selected(self, path, filename):
+    def cb_on_project_file_selected(self, path, filename):
         """Called when a gui file was selected
 
         Args:
@@ -399,7 +451,6 @@ class EditorApplication(PychanApplicationBase):
         for child in widget.children:
             self.disable_gui(child, True)
 
-
     def open_gui(self, filename):
         """Open a gui file
 
@@ -416,19 +467,28 @@ class EditorApplication(PychanApplicationBase):
             self._edit_window.adaptLayout()
             self._edit_wrapper.content = self._edit_window
         except IOError:
-            self.error_dialog (u"File '%s' was not found." %
-                               (filename))
+            self.error_dialog(u"File '%s' was not found." %
+                              (filename))
         except SAXParseException:
             self.error_dialog(u"Could not parse XML")
         except GuiXMLError, error:
             self.error_dialog(unicode(error))
 
-
-    def createListener(self):
+    def createListener(self):  # pylint: disable-msg=W0221, C0103
+        """Create and return the listener for this application"""
         self._listener = EditorEventListener(self)
         return self._listener
 
-    def on_widget_dragged(self, event, widget):
+    def cb_on_edit_window_dragged(self, event, widget):
+        """Called when the edit window is being tried to dragged.
+        Drags the selected widget instead.
+
+        Args:
+
+            event: A fife.MouseEvent
+
+            widget: The widget being dragged
+        """
         if self._marker_dragged:
             return
         if self.selected_widget is None:
