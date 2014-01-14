@@ -26,12 +26,15 @@ from fife.extensions.pychan import GuiXMLError
 from fife.extensions.pychan.pychanbasicapplication import PychanApplicationBase
 from fife.extensions.pychan.widgets import Container, VBox, HBox, ScrollArea
 from fife.extensions.pychan.dialog.filebrowser import FileBrowser
+from fife.extensions.pychan import attrs
+from fife.extensions.pychan.tools import callbackWithArguments as cbwa
 
 from editor.gui.menubar import MenuBar, Menu
 from editor.gui.action import Action
 from editor.gui import action
 from editor.gui.error import ErrorDialog
 from xml.sax._exceptions import SAXParseException
+from fife.extensions.pychan.exceptions import ParserError
 
 
 class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
@@ -108,6 +111,7 @@ class EditorApplication(PychanApplicationBase):
         self._bottom_window = None
         self._edit_window = None
         self._edit_wrapper = None
+        self._property_area = None
         self._property_window = None
         self._selected_widget = None
         self._project_data_path = None
@@ -154,8 +158,11 @@ class EditorApplication(PychanApplicationBase):
 
         self._edit_wrapper.addChild(self._edit_window)
         self._bottom_window.addChild(self._edit_wrapper)
-        self._property_window = Container(border_size=1, vexpand=1, hexpand=1)
-        self._bottom_window.addChild(self._property_window)
+        self._property_area = ScrollArea(border_size=1, vexpand=1, hexpand=1,
+                                         min_size=(100, 0))
+        self._property_window = VBox(border_size=1, vexpand=1, hexpand=1)
+        self._property_area.content = self._property_window
+        self._bottom_window.addChild(self._property_area)
         self._main_window.addChild(self._bottom_window)
         self._main_window.show()
         self.clear_gui()
@@ -372,6 +379,118 @@ class EditorApplication(PychanApplicationBase):
         self._markers["BL"] = marker_bl
         self.position_markers()
 
+    def cb_property_changed(self, attr, widget, property_name, error=False):
+        """Called when a property is changed
+
+        Args:
+
+            attr: A fife.extensions.pychan.attrs.Attr instance
+
+            widget: The widget that holds the new value
+
+            property_name: The name of the widget property that contains
+            the new value
+
+            error: Reset value if an error was raised
+        """
+        try:
+            value = attr.parse(getattr(widget, property_name))
+            setattr(self.selected_widget, attr.name, value)
+            self.recreate_markers()
+        except ParserError:
+            if error:
+                self.update_property_window()
+
+    def update_property_window(self):
+        """Update the property window"""
+        selected = self.selected_widget
+        self._property_window.removeAllChildren()
+        assert isinstance(selected, pychan.Widget)
+        for attr in selected.ATTRIBUTES:
+            assert isinstance(attr, attrs.Attr)
+            property_item = HBox(name=attr.name)
+            property_label = pychan.Label(name="label",
+                                          text=unicode(attr.name))
+            value = getattr(selected, attr.name)
+            property_edit = None
+            callback = None
+            finish_callback = None
+            if isinstance(attr, attrs.PointAttr):
+                property_edit = pychan.TextField(name="edit",
+                                                 text=u"%i, %i" % (value))
+                callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text"),
+                            "keyPressed")
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text", True),
+                            "action")
+            elif isinstance(attr, attrs.ColorAttr):
+                property_edit = pychan.TextField(name="edit",
+                                                 text=u"%i, %i, %i, %i" %
+                                                 (value.r,
+                                                  value.g,
+                                                  value.b,
+                                                  value.a))
+                callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text"),
+                            "keyPressed")
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text", True),
+                            "action")
+            elif isinstance(attr, attrs.IntAttr):
+                property_edit = pychan.TextField(name="edit",
+                                                 text=unicode(value))
+                callback = (cbwa(self.cb_property_changed(attr,
+                                                         property_edit,
+                                                         "text")),
+                            "keyPressed")
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text", True),
+                            "action")
+            elif isinstance(attr, attrs.FloatAttr):
+                property_edit = pychan.TextField(name="edit",
+                                                 text=unicode(value))
+                callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text"),
+                            "keyPressed")
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text", True),
+                            "action")
+            elif isinstance(attr, attrs.BoolAttr):
+                property_edit = pychan.CheckBox(marked=value)
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                          property_edit,
+                                                          "marked"),
+                            "mouseClicked")
+            else:
+                property_edit = pychan.TextField(name="edit",
+                                                 text=unicode(value))
+                callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text"),
+                            "keyPressed")
+                finish_callback = (cbwa(self.cb_property_changed, attr,
+                                                         property_edit,
+                                                         "text", True),
+                            "action")
+            if callback is not None:
+                property_edit.capture(*callback)
+            if finish_callback is not None:
+                property_edit.capture(*finish_callback)
+            property_item.addChildren(property_label)
+            property_item.addChildren(property_edit)
+
+            self._property_window.addChildren(property_item)
+        self._property_window.adaptLayout()
+        self._property_window.show()
+
     def select_widget(self, widget):
         """Sets a widget to be the currently selected one
 
@@ -385,6 +504,7 @@ class EditorApplication(PychanApplicationBase):
             assert isinstance(widget, pychan.Widget)
             self._selected_widget = widget
         self.recreate_markers()
+        self.update_property_window()
 
     def switch_language(self, language):
         """Switch to the given language
