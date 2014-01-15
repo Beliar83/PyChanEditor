@@ -71,6 +71,27 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
             command.consume()
 
 
+class WidgetItem(object):
+    """Class to control how a widget appears in a list"""
+
+    def __init__(self, widget):
+        self._widget = widget
+
+    @property
+    def widget(self):
+        """The contained widget"""
+        return self._widget
+
+    def __str__(self):
+        return self.widget.name
+
+    def __eq__(self, other):
+        """Returns True if the the other widget is the same as the stored
+        widget.
+        """
+        return other == self.widget
+
+
 class EditorApplication(PychanApplicationBase):
     """The main class for the PyChanEditor"""
 
@@ -105,12 +126,15 @@ class EditorApplication(PychanApplicationBase):
         self._filename = None
         self._markers = {}
         self._main_window = None
+        self._toolbar_area = None
         self._toolbar = None
         self._menubar = None
         self._file_menu = None
         self._bottom_window = None
         self._edit_window = None
         self._edit_wrapper = None
+        self._right_window = None
+        self._widget_combo = None
         self._property_area = None
         self._property_window = None
         self._selected_widget = None
@@ -119,6 +143,8 @@ class EditorApplication(PychanApplicationBase):
         self._widget_dragged = False
         self._old_x = 0
         self._old_y = 0
+        self._widgets = []
+
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight())
 
@@ -146,9 +172,19 @@ class EditorApplication(PychanApplicationBase):
         self._menubar = MenuBar(min_size=(screen_width, self.MENU_HEIGHT))
         self.init_menu_actions()
         self._main_window.addChild(self._menubar)
-        self._toolbar = HBox(min_size=(screen_width, self.TOOLBAR_HEIGHT),
-                             vexpand=0, hexpand=1)
-        self._main_window.addChild(self._toolbar)
+        self._toolbar_area = ScrollArea(border_size=1, vexpand=1, hexpand=1,
+                                        min_size=(screen_width,
+                                                  self.TOOLBAR_HEIGHT),
+                                        max_size=(500000,
+                                                  self.TOOLBAR_HEIGHT))
+        self._toolbar = HBox(vexpand=0, hexpand=1)
+        for widget in pychan.WIDGETS:
+            button = pychan.Button(text=widget, max_size=(500000,
+                                                          self.TOOLBAR_HEIGHT))
+            button.capture(cbwa(self.tool_clicked, widget), "action")
+            self._toolbar.addChild(button)
+        self._toolbar_area.content = self._toolbar
+        self._main_window.addChild(self._toolbar_area)
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
         self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)
         self._edit_window = Container(parent=self._edit_wrapper)
@@ -158,11 +194,19 @@ class EditorApplication(PychanApplicationBase):
 
         self._edit_wrapper.addChild(self._edit_window)
         self._bottom_window.addChild(self._edit_wrapper)
-        self._property_area = ScrollArea(border_size=1, vexpand=1, hexpand=1,
-                                         min_size=(100, 0))
+        self._right_window = VBox(min_size=(250, 0), max_size=(250, 500000),
+                                                         vexpand=1, hexpand=1)
+        self._widget_combo = pychan.DropDown(vexpand=1, hexpand=1,
+                                             min_size=(250, 20),
+                                             max_size=(250, 20))
+        self.update_combo()
+        self._widget_combo.capture(self.cb_combo_item_selected, "action")
+        self._right_window.addChild(self._widget_combo)
+        self._property_area = ScrollArea(border_size=1, vexpand=1, hexpand=1)
         self._property_window = VBox(border_size=1, vexpand=1, hexpand=1)
         self._property_area.content = self._property_window
-        self._bottom_window.addChild(self._property_area)
+        self._right_window.addChild(self._property_area)
+        self._bottom_window.addChild(self._right_window)
         self._main_window.addChild(self._bottom_window)
         self._main_window.show()
         self.clear_gui()
@@ -519,9 +563,11 @@ class EditorApplication(PychanApplicationBase):
         """
         if widget is None:
             self._selected_widget = None
+            self._widget_combo.selected = -1
         else:
             assert isinstance(widget, pychan.Widget)
             self._selected_widget = widget
+            self._widget_combo.selected = self._widgets.index(widget)
         self.recreate_markers()
 
     def switch_language(self, language):
@@ -598,6 +644,7 @@ class EditorApplication(PychanApplicationBase):
         """
         try:
             gui = pychan.loadXML(filename)
+            self.add_widget_to_list(gui)
             self.disable_gui(gui)
             self.clear_gui()
             self._filename = filename
@@ -644,3 +691,61 @@ class EditorApplication(PychanApplicationBase):
         self._old_x = event.getX()
         self._old_y = event.getY()
         self._widget_dragged = True
+
+    def tool_clicked(self, tool):
+        """Called when a tool was clicked"""
+        cls = pychan.WIDGETS[tool]
+        new_widget = cls(name="New_%s" % tool)
+        width = 50
+        height = 50
+        if self.selected_widget is not None:
+            try:
+                self.selected_widget.addChild(new_widget)
+                new_widget.parent = self.selected_widget
+                if self.selected_widget.width < width:
+                    width = self.selected_widget.width - 1
+                if self.selected_widget.height < height:
+                    height = self.selected_widget.height - 1
+            except RuntimeError:
+                self.error_dialog("Please select a widget "
+                                  "that can contain children or select None "
+                                  "to add with no parent.")
+                return
+        else:
+            self.edit_window.addChild(new_widget)
+            new_widget.parent = self.edit_window
+        new_widget.size = (width, height)
+        self.add_widget_to_list(new_widget)
+        self.update_combo()
+        self._edit_window.show()
+        self.disable_gui(new_widget)
+        self.select_widget(new_widget)
+
+    def add_widget_to_list(self, widget):
+        """Adds a widget and its children to the widget list
+
+        Args:
+
+            widget: The widget to add
+        """
+        self._widgets.append(WidgetItem(widget))
+        if hasattr(widget, "children"):
+            for child in widget.children:
+                self.add_widget_to_list(child)
+
+    def update_combo(self):
+        """Updates the combo box"""
+        self._widget_combo.items = self._widgets
+        self._widget_combo.show()
+
+    def cb_combo_item_selected(self, event, widget):
+        """Called when an item was selected in the combo box
+
+        Args:
+
+            event: A fife.Event
+
+            widget: The combo box
+        """
+        assert isinstance(widget, pychan.DropDown)
+        self.select_widget(widget.selected_item.widget)
