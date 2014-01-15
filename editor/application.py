@@ -227,7 +227,6 @@ class EditorApplication(PychanApplicationBase):
         if self._marker_dragged:
             # Stops the editor from selecting another widget after a widget has
             # been resized by a marker
-            self._marker_dragged = False
             return
         assert isinstance(event, fife.MouseEvent)
         assert isinstance(widget, pychan.Widget)
@@ -327,6 +326,19 @@ class EditorApplication(PychanApplicationBase):
         if event.getButton() == 1:
             self._marker_dragged = True
 
+    def cb_on_marker_released(self, event, widget):
+        """Called when a mouse button was released on a marker
+
+        Args:
+
+            event: A fife.MouseEvent
+
+            widget: The marker where the mouse was pressed on
+        """
+        assert isinstance(event, fife.MouseEvent)
+        if event.getButton() == 1:
+            self._marker_dragged = False
+
     def position_markers(self):
         """RePositions the markers on the selected widget"""
         x_pos, y_pos = self.get_pos_in_scrollarea(self.selected_widget)
@@ -351,6 +363,7 @@ class EditorApplication(PychanApplicationBase):
             image="gui/icons/marker.png")
         marker_tl.capture(self.cb_on_marker_dragged, "mouseDragged")
         marker_tl.capture(self.cb_on_marker_pressed, "mousePressed")
+        marker_tl.capture(self.cb_on_marker_released, "mouseReleased")
         self._edit_window.addChild(marker_tl)
         self._markers["TL"] = marker_tl
         marker_tr = pychan.Icon(parent=self._edit_window,
@@ -359,6 +372,7 @@ class EditorApplication(PychanApplicationBase):
             image="gui/icons/marker.png")
         marker_tr.capture(self.cb_on_marker_dragged, "mouseDragged")
         marker_tr.capture(self.cb_on_marker_pressed, "mousePressed")
+        marker_tr.capture(self.cb_on_marker_released, "mouseReleased")
         self._edit_window.addChild(marker_tr)
         self._markers["TR"] = marker_tr
         marker_br = pychan.Icon(parent=self._edit_window,
@@ -367,6 +381,7 @@ class EditorApplication(PychanApplicationBase):
             image="gui/icons/marker.png")
         marker_br.capture(self.cb_on_marker_dragged, "mouseDragged")
         marker_br.capture(self.cb_on_marker_pressed, "mousePressed")
+        marker_br.capture(self.cb_on_marker_released, "mouseReleased")
         self._edit_window.addChild(marker_br)
         self._markers["BR"] = marker_br
         marker_bl = pychan.Icon(parent=self._edit_window,
@@ -375,6 +390,7 @@ class EditorApplication(PychanApplicationBase):
             image="gui/icons/marker.png")
         marker_bl.capture(self.cb_on_marker_dragged, "mouseDragged")
         marker_bl.capture(self.cb_on_marker_pressed, "mousePressed")
+        marker_bl.capture(self.cb_on_marker_released, "mouseReleased")
         self._edit_window.addChild(marker_bl)
         self._markers["BL"] = marker_bl
         self.position_markers()
