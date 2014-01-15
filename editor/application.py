@@ -507,9 +507,9 @@ class EditorApplication(PychanApplicationBase):
             elif isinstance(attr, attrs.IntAttr):
                 property_edit = pychan.TextField(name="edit",
                                                  text=unicode(value))
-                callback = (cbwa(self.cb_property_changed(attr,
+                callback = (cbwa(self.cb_property_changed, attr,
                                                          property_edit,
-                                                         "text")),
+                                                         "text"),
                             "keyPressed")
                 finish_callback = (cbwa(self.cb_property_changed, attr,
                                                          property_edit,
