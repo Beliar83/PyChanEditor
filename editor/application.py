@@ -421,6 +421,8 @@ class EditorApplication(PychanApplicationBase):
         """Update the property window"""
         selected = self.selected_widget
         self._property_window.removeAllChildren()
+        if selected is None:
+            return
         assert isinstance(selected, pychan.Widget)
         for attr in selected.ATTRIBUTES:
             assert isinstance(attr, attrs.Attr)
