@@ -251,6 +251,12 @@ class EditorApplication(PychanApplicationBase):
                     if found:
                         return found
                 return widget
+            elif hasattr(widget, "content") and widget.content is not None:
+                found = self.get_widget_in(widget.content, x_pos, y_pos)
+                if found:
+                    return found
+                else:
+                    return widget
             else:
                 return widget
 
