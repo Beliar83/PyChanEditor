@@ -645,10 +645,13 @@ class EditorApplication(PychanApplicationBase):
             recursive: Whether to disable the children of the widget, or not.
         """
         widget.real_widget.setEnabled(False)
-        if not recursive or not hasattr(widget, "children"):
+        if not recursive:
             return
-        for child in widget.children:
-            self.disable_gui(child, True)
+        if hasattr(widget, "children"):
+            for child in widget.children:
+                self.disable_gui(child, True)
+        elif hasattr(widget, "content") and widget.content is not None:
+            self.disable_gui(widget.content, True)
 
     def open_gui(self, filename):
         """Open a gui file
