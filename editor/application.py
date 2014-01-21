@@ -18,9 +18,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 import gettext
 import yaml
 import os
+from xml.sax._exceptions import SAXParseException
 
 from fife import fife
-
 from fife.extensions import pychan
 from fife.extensions.pychan import GuiXMLError
 from fife.extensions.pychan.pychanbasicapplication import PychanApplicationBase
@@ -28,13 +28,13 @@ from fife.extensions.pychan.widgets import Container, VBox, HBox, ScrollArea
 from fife.extensions.pychan.dialog.filebrowser import FileBrowser
 from fife.extensions.pychan import attrs
 from fife.extensions.pychan.tools import callbackWithArguments as cbwa
+from fife.extensions.pychan.exceptions import ParserError
 
 from editor.gui.menubar import MenuBar, Menu
 from editor.gui.action import Action
 from editor.gui import action
 from editor.gui.error import ErrorDialog
-from xml.sax._exceptions import SAXParseException
-from fife.extensions.pychan.exceptions import ParserError
+from editor.gui.editcontainer import EditContainer
 
 
 class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
@@ -198,7 +198,7 @@ class EditorApplication(PychanApplicationBase):
         self._main_window.addChild(self._toolbar_area)
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
         self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)
-        self._edit_window = Container(parent=self._edit_wrapper)
+        self._edit_window = EditContainer(parent=self._edit_wrapper)
         self._edit_window.capture(self.cb_edit_window_mouse_pressed,
                                   "mousePressed")
         self._edit_window.capture(self.cb_on_widget_selected, "mouseReleased")
@@ -252,9 +252,8 @@ class EditorApplication(PychanApplicationBase):
                 y_pos: The vertical position where the widget should be looked
                 for
         """
-        point = fife.Point(x_pos, y_pos +
-                           self.MENU_HEIGHT + self.TOOLBAR_HEIGHT)
-        abs_x, abs_y = widget.real_widget.getAbsolutePosition()
+        point = fife.Point(x_pos, y_pos)
+        abs_x, abs_y = self.get_pos_in_scrollarea(widget)
         rect = fife.Rect(abs_x, abs_y,
                          widget.real_widget.getWidth(),
                          widget.real_widget.getHeight())
@@ -326,6 +325,8 @@ class EditorApplication(PychanApplicationBase):
         assert isinstance(real_widget, fife.fifechan.Widget)
         x_pos, y_pos = real_widget.getAbsolutePosition()
         y_pos -= (self.TOOLBAR_HEIGHT + self.MENU_HEIGHT)
+        y_pos += self._edit_wrapper.vertical_scroll_amount
+        x_pos += self._edit_wrapper.horizontal_scroll_amount
 
         return x_pos, y_pos
 
@@ -684,6 +685,7 @@ class EditorApplication(PychanApplicationBase):
 
     def update_editor(self):
         """Updates the editor to a change in the selected widget"""
+        self.edit_window.resize_to_content()
         self.position_markers()
         self.update_property_window()
 
