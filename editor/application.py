@@ -158,6 +158,16 @@ class EditorApplication(PychanApplicationBase):
         """The window that contains the gui to be edited"""
         return self._edit_window
 
+    def key_pressed(self, event):
+        """Receives key events from widgets and passes them to the listener
+
+        Args:
+
+            event: The fifechan event
+        """
+        if self._listener is not None:
+            self._listener.keyPressed(event)
+
     def init_gui(self, screen_width, screen_height):
         """Initialize the gui
 
@@ -169,6 +179,7 @@ class EditorApplication(PychanApplicationBase):
         """
         self._main_window = VBox(min_size=(screen_width, screen_height),
                                  position=(0, 0), hexpand=1, vexpand=1)
+        self._main_window.capture(self.key_pressed, "keyPressed")
         self._menubar = MenuBar(min_size=(screen_width, self.MENU_HEIGHT))
         self.init_menu_actions()
         self._main_window.addChild(self._menubar)
@@ -701,6 +712,7 @@ class EditorApplication(PychanApplicationBase):
         """Called when a tool was clicked"""
         cls = pychan.WIDGETS[tool]
         new_widget = cls(name="New_%s" % tool)
+        self.disable_gui(new_widget)
         width = 50
         height = 50
         if self.selected_widget is not None:
@@ -723,7 +735,6 @@ class EditorApplication(PychanApplicationBase):
         self.add_widget_to_list(new_widget)
         self.update_combo()
         self._edit_window.show()
-        self.disable_gui(new_widget)
         self.select_widget(new_widget)
 
     def add_widget_to_list(self, widget):
