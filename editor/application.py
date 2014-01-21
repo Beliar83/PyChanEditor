@@ -254,9 +254,10 @@ class EditorApplication(PychanApplicationBase):
         """
         point = fife.Point(x_pos, y_pos +
                            self.MENU_HEIGHT + self.TOOLBAR_HEIGHT)
-        abs_x, abs_y = widget.getAbsolutePos()
+        abs_x, abs_y = widget.real_widget.getAbsolutePosition()
         rect = fife.Rect(abs_x, abs_y,
-                         widget.width, widget.height)
+                         widget.real_widget.getWidth(),
+                         widget.real_widget.getHeight())
         if rect.contains(point):
             if hasattr(widget, "children"):
                 for child in widget.children:
@@ -641,7 +642,7 @@ class EditorApplication(PychanApplicationBase):
 
             widget: The widget to disable
 
-            recursive: Wether to disable the children of the widget, or not.
+            recursive: Whether to disable the children of the widget, or not.
         """
         widget.real_widget.setEnabled(False)
         if not recursive or not hasattr(widget, "children"):
