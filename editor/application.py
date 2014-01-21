@@ -190,7 +190,7 @@ class EditorApplication(PychanApplicationBase):
                                                   self.TOOLBAR_HEIGHT))
         self._toolbar = HBox(vexpand=0, hexpand=1)
         for widget in pychan.WIDGETS:
-            button = pychan.Button(text=widget, max_size=(500000,
+            button = pychan.Button(text=unicode(widget), max_size=(500000,
                                                           self.TOOLBAR_HEIGHT))
             button.capture(cbwa(self.tool_clicked, widget), "action")
             self._toolbar.addChild(button)
@@ -199,7 +199,9 @@ class EditorApplication(PychanApplicationBase):
         self._bottom_window = HBox(border_size=1, vexpand=1, hexpand=1)
         self._edit_wrapper = ScrollArea(border_size=1, vexpand=1, hexpand=3)
         self._edit_window = Container(parent=self._edit_wrapper)
-        self._edit_window.capture(self.cb_on_widget_selected, "mousePressed")
+        self._edit_window.capture(self.cb_edit_window_mouse_pressed,
+                                  "mousePressed")
+        self._edit_window.capture(self.cb_on_widget_selected, "mouseReleased")
         self._edit_window.capture(self.cb_on_edit_window_dragged,
                                   "mouseDragged")
 
@@ -273,8 +275,20 @@ class EditorApplication(PychanApplicationBase):
 
         return None
 
+    def cb_edit_window_mouse_pressed(self, event, widget):
+        """Called when a mouse button is pressed on the edit window
+
+        Args:
+
+            event: A fife.MouseEvent instance
+
+            widget: The edit window
+        """
+        self._old_x = event.getX()
+        self._old_y = event.getY()
+
     def cb_on_widget_selected(self, event, widget):
-        """Called when a widget is clicked
+        """Called when a mouse buttib is released on a widget
 
         Args:
 
@@ -282,12 +296,13 @@ class EditorApplication(PychanApplicationBase):
 
             widget: The widget that was clicked
         """
-        self._widget_dragged = False
-        self._old_x = event.getX()
-        self._old_y = event.getY()
+        if self._widget_dragged:
+            self._widget_dragged = False
+            return
         if self._marker_dragged:
             # Stops the editor from selecting another widget after a widget has
             # been resized by a marker
+            self._marker_dragged = False
             return
         assert isinstance(event, fife.MouseEvent)
         assert isinstance(widget, pychan.Widget)
@@ -384,19 +399,6 @@ class EditorApplication(PychanApplicationBase):
         if event.getButton() == 1:
             self._marker_dragged = True
 
-    def cb_on_marker_released(self, event, widget):
-        """Called when a mouse button was released on a marker
-
-        Args:
-
-            event: A fife.MouseEvent
-
-            widget: The marker where the mouse was pressed on
-        """
-        assert isinstance(event, fife.MouseEvent)
-        if event.getButton() == 1:
-            self._marker_dragged = False
-
     def position_markers(self):
         """RePositions the markers on the selected widget"""
         if self.selected_widget is None:
@@ -422,7 +424,6 @@ class EditorApplication(PychanApplicationBase):
                 image="gui/icons/marker.png")
             marker_tl.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_tl.capture(self.cb_on_marker_pressed, "mousePressed")
-            marker_tl.capture(self.cb_on_marker_released, "mouseReleased")
             self._edit_window.addChild(marker_tl)
             self._markers["TL"] = marker_tl
             marker_tr = pychan.Icon(parent=self._edit_window,
@@ -431,7 +432,6 @@ class EditorApplication(PychanApplicationBase):
                 image="gui/icons/marker.png")
             marker_tr.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_tr.capture(self.cb_on_marker_pressed, "mousePressed")
-            marker_tr.capture(self.cb_on_marker_released, "mouseReleased")
             self._edit_window.addChild(marker_tr)
             self._markers["TR"] = marker_tr
             marker_br = pychan.Icon(parent=self._edit_window,
@@ -440,7 +440,6 @@ class EditorApplication(PychanApplicationBase):
                 image="gui/icons/marker.png")
             marker_br.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_br.capture(self.cb_on_marker_pressed, "mousePressed")
-            marker_br.capture(self.cb_on_marker_released, "mouseReleased")
             self._edit_window.addChild(marker_br)
             self._markers["BR"] = marker_br
             marker_bl = pychan.Icon(parent=self._edit_window,
@@ -449,7 +448,6 @@ class EditorApplication(PychanApplicationBase):
                 image="gui/icons/marker.png")
             marker_bl.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_bl.capture(self.cb_on_marker_pressed, "mousePressed")
-            marker_bl.capture(self.cb_on_marker_released, "mouseReleased")
             self._edit_window.addChild(marker_bl)
             self._markers["BL"] = marker_bl
         self.update_editor()
@@ -698,7 +696,14 @@ class EditorApplication(PychanApplicationBase):
         if self._marker_dragged:
             return
         if self.selected_widget is None:
-            return
+            selected = self.get_widget_in(self.edit_window,
+                                        event.getX(),
+                                        event.getY())
+            if selected is not None:
+                self.select_widget(selected)
+            else:
+                return
+
         rel_x = event.getX() - self._old_x
         rel_y = event.getY() - self._old_y
         self.selected_widget.x += rel_x
