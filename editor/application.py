@@ -289,13 +289,10 @@ class EditorApplication(PychanApplicationBase):
             widget: The widget
         """
         assert isinstance(widget, pychan.Widget)
-        x_pos = widget.x
-        y_pos = widget.y
-        parent = widget.parent
-        while parent is not self._edit_window:
-            x_pos += parent.x
-            y_pos += parent.y
-            parent = parent.parent
+        real_widget = widget.real_widget
+        assert isinstance(real_widget, fife.fifechan.Widget)
+        x_pos, y_pos = real_widget.getAbsolutePosition()
+        y_pos -= (self.TOOLBAR_HEIGHT + self.MENU_HEIGHT)
 
         return x_pos, y_pos
 
@@ -391,11 +388,11 @@ class EditorApplication(PychanApplicationBase):
         x_pos -= 5
         y_pos -= 5
         self._markers["TL"].position = x_pos, y_pos
-        x_pos += self.selected_widget.width
+        x_pos += self.selected_widget.real_widget.getWidth()
         self._markers["TR"].position = x_pos, y_pos
-        y_pos += self.selected_widget.height
+        y_pos += self.selected_widget.real_widget.getHeight()
         self._markers["BR"].position = x_pos, y_pos
-        x_pos -= self.selected_widget.width
+        x_pos -= self.selected_widget.real_widget.getWidth()
         self._markers["BL"].position = x_pos, y_pos
 
     def recreate_markers(self):
