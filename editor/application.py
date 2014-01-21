@@ -564,6 +564,8 @@ class EditorApplication(PychanApplicationBase):
 
             widget: The widget
         """
+        if widget in self._markers.values():
+            return
         if widget is None:
             self._selected_widget = None
             self._widget_combo.selected = -1
