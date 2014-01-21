@@ -703,7 +703,7 @@ class EditorApplication(PychanApplicationBase):
             selected = self.get_widget_in(self.edit_window,
                                         event.getX(),
                                         event.getY())
-            if selected is not None:
+            if selected is not None and selected is not self._edit_window:
                 self.select_widget(selected)
             else:
                 return
