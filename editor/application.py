@@ -24,7 +24,7 @@ from fife import fife
 from fife.extensions import pychan
 from fife.extensions.pychan import GuiXMLError
 from fife.extensions.pychan.pychanbasicapplication import PychanApplicationBase
-from fife.extensions.pychan.widgets import Container, VBox, HBox, ScrollArea
+from fife.extensions.pychan.widgets import VBox, HBox, ScrollArea
 from fife.extensions.pychan.dialog.filebrowser import FileBrowser
 from fife.extensions.pychan import attrs
 from fife.extensions.pychan.tools import callbackWithArguments as cbwa
@@ -41,6 +41,8 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
 
     """Listener for the PyChanEditor"""
     def __init__(self, app):
+        if False:
+            self.app = EditorApplication()
         self.app = app
         self.engine = app.engine
         eventmanager = self.engine.getEventManager()
@@ -61,6 +63,11 @@ class EditorEventListener(fife.IKeyListener, fife.ICommandListener):
             parent = selected.parent
             if parent is not self.app.edit_window:
                 self.app.select_widget(parent)
+        elif keyval == fife.Key.DELETE:
+            selected = self.app.selected_widget
+            if not selected:
+                return
+            self.app.delete_widget(selected)
 
     def keyReleased(self, evt):  # pylint: disable-msg=W0221, C0103
         pass
@@ -776,3 +783,17 @@ class EditorApplication(PychanApplicationBase):
         """
         assert isinstance(widget, pychan.DropDown)
         self.select_widget(widget.selected_item.widget)
+
+    def delete_widget(self, widget):
+        """Deletes a widget
+
+        Args:
+
+            widget: The widget to delete
+        """
+        self._widgets.remove(widget)
+        parent = widget.parent
+        parent.removeChild(widget)
+        self.select_widget(None)
+        self.update_combo()
+        self.update_property_window()
