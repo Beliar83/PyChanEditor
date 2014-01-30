@@ -625,6 +625,7 @@ class EditorApplication(PychanApplicationBase):
 
     def clear_gui(self):
         """Clears the current gui file and markers"""
+        self.clear_markers()
         self._edit_window.removeAllChildren()
 
     def cb_on_open_project_action(self):
