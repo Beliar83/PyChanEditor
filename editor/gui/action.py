@@ -180,6 +180,7 @@ class ActionGroup:
 		for a in self._actions:
 			if a != sender and a.isChecked():
 				a.setChecked(False)
+		toggled.send(self)
 
 	def getChecked(self):
 		for a in self._actions:

@@ -31,8 +31,7 @@ from fife.extensions.pychan.tools import callbackWithArguments as cbwa
 from fife.extensions.pychan.exceptions import ParserError
 
 from editor.gui.menubar import MenuBar, Menu
-from editor.gui.action import Action
-from editor.gui import action
+from editor.gui.action import Action, ActionGroup, activated, toggled
 from editor.gui.error import ErrorDialog
 from editor.gui.editcontainer import EditContainer
 
@@ -108,6 +107,9 @@ class EditorApplication(PychanApplicationBase):
     TOOLBAR_HEIGHT = 60
 
     def __init__(self, setting=None):
+        #for IDES:
+        if False:
+            self.engine = fife.Engine()
         self._listener = None
         PychanApplicationBase.__init__(self, setting)
 
@@ -130,14 +132,15 @@ class EditorApplication(PychanApplicationBase):
         self.switch_language(language)
 
         self._engine_settings = self.engine.getSettings()
-        self._filename = None
         self._markers = {}
         self._main_window = None
         self._toolbar_area = None
         self._toolbar = None
         self._menubar = None
         self._file_menu = None
+        self._window_menu = None
         self._bottom_window = None
+        self._edit_tab = None
         self._edit_window = None
         self._edit_wrapper = None
         self._right_window = None
@@ -151,6 +154,11 @@ class EditorApplication(PychanApplicationBase):
         self._old_x = 0
         self._old_y = 0
         self._widgets = []
+        self._guis = {}
+        self._gui_actions = ActionGroup(exclusive=True, name="GuiActions")
+        toggled.connect(self.cb_select_gui, self._gui_actions)
+        self._current_gui = None
+        self._current_gui_path = None
 
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight())
@@ -235,16 +243,18 @@ class EditorApplication(PychanApplicationBase):
         """Initialize actions for the menu"""
         open_project_action = Action(_(u"Open"), "gui/icons/open_file.png")
         open_project_action.helptext = _(u"Open GUI file")
-        action.activated.connect(self.cb_on_open_project_action,
+        activated.connect(self.cb_on_open_project_action,
                                  sender=open_project_action)
         exit_action = Action(_(u"Exit"), "gui/icons/quit.png")
         exit_action.helptext = _(u"Exit program")
-        action.activated.connect(self.quit, sender=exit_action)
+        activated.connect(self.quit, sender=exit_action)
         self._file_menu = Menu(name=_(u"File"))
         self._file_menu.addAction(open_project_action)
         self._file_menu.addSeparator()
         self._file_menu.addAction(exit_action)
         self._menubar.addMenu(self._file_menu)
+        self._window_menu = Menu(name=_(u"Windows"))
+        self._menubar.addMenu(self._window_menu)
 
     def get_widget_in(self, widget, x_pos, y_pos):
         """Returns the first child widget at the position in the widgets area
@@ -427,10 +437,11 @@ class EditorApplication(PychanApplicationBase):
         """ReCreates the markers for the currently selected widget"""
         self.clear_markers()
         if self.selected_widget is not None:
+            image_path = os.path.join(self.DATA_PATH, "gui/icons/marker.png")
             marker_tl = pychan.Icon(parent=self._edit_window,
                 name="MarkerTL",
                 size=(10, 10),
-                image="gui/icons/marker.png")
+                image=image_path)
             marker_tl.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_tl.capture(self.cb_on_marker_pressed, "mousePressed")
             self._edit_window.addChild(marker_tl)
@@ -438,7 +449,7 @@ class EditorApplication(PychanApplicationBase):
             marker_tr = pychan.Icon(parent=self._edit_window,
                 name="MarkerTR",
                 size=(10, 10),
-                image="gui/icons/marker.png")
+                image=image_path)
             marker_tr.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_tr.capture(self.cb_on_marker_pressed, "mousePressed")
             self._edit_window.addChild(marker_tr)
@@ -446,7 +457,7 @@ class EditorApplication(PychanApplicationBase):
             marker_br = pychan.Icon(parent=self._edit_window,
                 name="MarkerBR",
                 size=(10, 10),
-                image="gui/icons/marker.png")
+                image=image_path)
             marker_br.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_br.capture(self.cb_on_marker_pressed, "mousePressed")
             self._edit_window.addChild(marker_br)
@@ -454,7 +465,7 @@ class EditorApplication(PychanApplicationBase):
             marker_bl = pychan.Icon(parent=self._edit_window,
                 name="MarkerBL",
                 size=(10, 10),
-                image="gui/icons/marker.png")
+                image=image_path)
             marker_bl.capture(self.cb_on_marker_dragged, "mouseDragged")
             marker_bl.capture(self.cb_on_marker_pressed, "mousePressed")
             self._edit_window.addChild(marker_bl)
@@ -637,11 +648,27 @@ class EditorApplication(PychanApplicationBase):
         project_file = file(filepath, "r")
         project = yaml.load(project_file)
         gui_path = os.path.join(path, project["settings"]["gui_path"])
-        vfs = self.engine.getVFS()
-        assert isinstance(vfs, fife.VFS)
-        vfs.addNewSource(gui_path)
-        gui_filepath = os.path.join(path, project["guis"][0])
-        self.open_gui(gui_filepath)
+        self._current_gui_path = gui_path
+        gui_files = project["guis"]
+        last_gui = project["settings"]["last_gui"]
+        selected_gui_action = None
+        self._guis = {}
+        self._gui_actions.clear()
+        for gui_name, gui_file in gui_files.iteritems():
+            real_gui_file = os.path.join(path, gui_file)
+            abs_gui_file = os.path.abspath(real_gui_file)
+            gui_action = Action(unicode(gui_name), checkable=True)
+            gui_action.helptext = _(u"Show %s gui" % (gui_name))
+            gui_action.gui_name = gui_name
+            self._gui_actions.addAction(gui_action)
+            if gui_name == last_gui:
+                selected_gui_action = gui_action
+            self._guis[gui_name] = abs_gui_file
+        self.update_gui_menu()
+        if selected_gui_action:
+            selected_gui_action.setChecked(True)
+        else:
+            self.clear_gui()
 
     def disable_gui(self, widget, recursive=True):
         """Disablds the widget.
@@ -661,22 +688,17 @@ class EditorApplication(PychanApplicationBase):
         elif hasattr(widget, "content") and widget.content is not None:
             self.disable_gui(widget.content, True)
 
-    def open_gui(self, filename):
-        """Open a gui file
+    def load_gui(self, filename):
+        """Load a gui file and return the gui
 
         Args:
 
             filename: The path to the file
+
+        Returns: The loaded gui
         """
         try:
-            gui = pychan.loadXML(filename)
-            self.add_widget_to_list(gui)
-            self.disable_gui(gui)
-            self.clear_gui()
-            self._filename = filename
-            self._edit_window.addChild(gui)
-            self._edit_window.adaptLayout()
-            self._edit_wrapper.content = self._edit_window
+            return pychan.loadXML(filename)
         except IOError:
             self.error_dialog(u"File '%s' was not found." %
                               (filename))
@@ -797,3 +819,31 @@ class EditorApplication(PychanApplicationBase):
         self.select_widget(None)
         self.update_combo()
         self.update_property_window()
+
+    def update_gui_menu(self):
+        """Updates the gui menu to the current guis"""
+        actions = self._gui_actions.getActions()
+        self._window_menu.clear()
+        for action in actions:
+            self._window_menu.addAction(action)
+
+    def cb_select_gui(self):
+        """Called when a menu action to select a gui was clicked"""
+        action = self._gui_actions.getChecked()
+        self.clear_gui()
+        gui_name = action.gui_name
+        if not isinstance(self._guis[gui_name], pychan.Widget):
+            old_dir = os.getcwd()
+            os.chdir(self._current_gui_path)
+            self._guis[gui_name] = self.load_gui(self._guis[gui_name])
+            os.chdir(old_dir)
+        if self._guis[gui_name] is None:
+            return
+        gui = self._guis[gui_name]
+        self.add_widget_to_list(gui)
+        self.disable_gui(gui)
+        if action.isChecked():
+            self._edit_window.addChild(gui)
+            self._edit_window.adaptLayout()
+            self._edit_wrapper.content = self._edit_window
+            self.update_combo()

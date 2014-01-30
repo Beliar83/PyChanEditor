@@ -23,6 +23,8 @@
 
 # Edited to be usable with PyChanEditor
 
+import os
+
 from fife.extensions import pychan
 import fife.extensions.pychan.widgets as widgets
 
@@ -31,7 +33,7 @@ class ErrorDialog(object):
 	Shows a dialog with an error message.
 	"""
 	def __init__(self, message, data_path=""):
-		self._widget = pychan.loadXML(data_path + 'gui/error.xml')
+		self._widget = pychan.loadXML(os.path.join(data_path, 'gui/error.xml'))
 
 		self._widget.mapEvents({
 			'okButton'     : self._widget.hide
