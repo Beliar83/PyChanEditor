@@ -813,6 +813,22 @@ class EditorApplication(PychanApplicationBase):
         assert isinstance(widget, pychan.DropDown)
         self.select_widget(widget.selected_item.widget)
 
+    def remove_widget_recursive(self, widget):
+        """Removes a widget and all its children
+
+        Args:
+
+            widget: The widget to remove
+        """
+        self._widgets.remove(widget)
+        parent = widget.parent
+        parent.removeChild(widget)
+        if hasattr(widget, "children"):
+            for child in widget.children:
+                self.remove_widget_recursive(child)
+        if hasattr(widget, "content") and widget.content is not None:
+            self.remove_widget_recursive(widget.content)
+
     def delete_widget(self, widget):
         """Deletes a widget
 
@@ -820,9 +836,7 @@ class EditorApplication(PychanApplicationBase):
 
             widget: The widget to delete
         """
-        self._widgets.remove(widget)
-        parent = widget.parent
-        parent.removeChild(widget)
+        self.remove_widget_recursive(widget)
         self.select_widget(None)
         self.update_combo()
         self.update_property_window()
