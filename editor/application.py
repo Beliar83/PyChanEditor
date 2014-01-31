@@ -765,13 +765,13 @@ class EditorApplication(PychanApplicationBase):
                 if self.selected_widget.height < height:
                     height = self.selected_widget.height - 1
             except RuntimeError:
-                self.error_dialog("Please select a widget "
-                                  "that can contain children or select None "
-                                  "to add with no parent.")
+                self.error_dialog(_(u"Please select a widget "
+                                  u"that can contain children."))
                 return
         else:
-            self.edit_window.addChild(new_widget)
-            new_widget.parent = self.edit_window
+            self.error_dialog(_(u"Please select a widget "
+                              u"that can contain children."))
+            return
         new_widget.size = (width, height)
         self.add_widget_to_list(new_widget)
         self.update_combo()
