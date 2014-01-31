@@ -256,7 +256,7 @@ class EditorApplication(PychanApplicationBase):
         self._file_menu.addSeparator()
         self._file_menu.addAction(exit_action)
         self._menubar.addMenu(self._file_menu)
-        self._window_menu = Menu(name=_(u"Windows"))
+        self._window_menu = Menu(name=_(u"Guis"))
         self._menubar.addMenu(self._window_menu)
 
     def get_widget_in(self, widget, x_pos, y_pos):
