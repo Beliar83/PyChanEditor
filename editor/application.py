@@ -162,6 +162,9 @@ class EditorApplication(PychanApplicationBase):
 
         self.init_gui(self._engine_settings.getScreenWidth(),
                       self._engine_settings.getScreenHeight())
+        gui_action = self.new_gui("main")
+        gui_action.setChecked(True)
+        self.select_widget(self._guis["main"])
 
     @property
     def selected_widget(self):
@@ -848,3 +851,31 @@ class EditorApplication(PychanApplicationBase):
             self._edit_window.adaptLayout()
             self._edit_wrapper.content = self._edit_window
             self.update_combo()
+
+    def new_gui(self, name, cls=pychan.Container, **kwargs):
+        """Creates a new gui and adds it to the project
+
+        Args:
+
+            name: The name of the gui
+
+            cls: The root widget to be used for the new gui
+
+            kwargs: Additional args passed to the constructor of the widget
+
+        Returns: The menu action for the created gui
+        """
+        if name in self._guis.keys():
+            self.error_dialog(_(u"A Gui with the name %s already exists")
+                              % (name))
+            return None
+        new_gui = cls(name=name, **kwargs)
+        if new_gui.width <= 0 and new_gui.height <= 0:
+            new_gui.size = (self._edit_window.width, self.edit_window.height)
+        self._guis[name] = new_gui
+        gui_action = Action(unicode(name), checkable=True)
+        gui_action.helptext = _(u"Show %s gui" % (name))
+        gui_action.gui_name = name
+        self._gui_actions.addAction(gui_action)
+        self.update_gui_menu()
+        return gui_action
