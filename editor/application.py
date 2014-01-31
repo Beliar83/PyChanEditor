@@ -630,6 +630,9 @@ class EditorApplication(PychanApplicationBase):
         """Clears the current gui file and markers"""
         self.clear_markers()
         self._edit_window.removeAllChildren()
+        self.select_widget(None)
+        self._widgets = []
+        self.update_combo()
 
     def cb_on_open_project_action(self):
         """Display the filebrowser to selct a gui file to open"""
@@ -835,6 +838,8 @@ class EditorApplication(PychanApplicationBase):
         """Called when a menu action to select a gui was clicked"""
         action = self._gui_actions.getChecked()
         self.clear_gui()
+        if action is None:
+            return
         gui_name = action.gui_name
         if not isinstance(self._guis[gui_name], pychan.Widget):
             old_dir = os.getcwd()
@@ -846,11 +851,9 @@ class EditorApplication(PychanApplicationBase):
         gui = self._guis[gui_name]
         self.add_widget_to_list(gui)
         self.disable_gui(gui)
-        if action.isChecked():
-            self._edit_window.addChild(gui)
-            self._edit_window.adaptLayout()
-            self._edit_wrapper.content = self._edit_window
-            self.update_combo()
+        self._edit_window.addChild(gui)
+        self._edit_wrapper.content = self._edit_window
+        self.update_combo()
 
     def new_gui(self, name, cls=pychan.Container, **kwargs):
         """Creates a new gui and adds it to the project

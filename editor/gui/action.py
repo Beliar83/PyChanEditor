@@ -174,13 +174,13 @@ class ActionGroup:
 		return False
 
 	def _actionToggled(self, sender):
+		toggled.send(self)
 		if sender.isChecked() is False or self._exclusive is False:
 			return
 
 		for a in self._actions:
 			if a != sender and a.isChecked():
 				a.setChecked(False)
-		toggled.send(self)
 
 	def getChecked(self):
 		for a in self._actions:
